@@ -1,0 +1,439 @@
+{
+  "uid": "cinema-analytics",
+  "title": "Аналитика онлайн-кинотеатра",
+  "description": "Дашборд показывает, как меняется активность зрителей. Сутки на всех панелях отсчитываются по UTC.",
+  "editable": false,
+  "tags": [
+    "кинотеатр"
+  ],
+  "timezone": "utc",
+  "time": {
+    "from": "now-14d/d",
+    "to": "now"
+  },
+  "refresh": "1m",
+  "timepicker": {
+    "refresh_intervals": [
+      "30s",
+      "1m",
+      "5m",
+      "15m",
+      "30m",
+      "1h"
+    ]
+  },
+  "graphTooltip": 1,
+  "panels": [
+    {
+      "id": 1,
+      "type": "table",
+      "title": "Удержание зрителей по когортам",
+      "description": "В каждой строке собраны зрители, которые впервые включили фильм в один день. Столбец «День 7» показывает, какая доля этих зрителей вернулась к просмотру ровно через неделю. Если в этот день никто не вернулся, в ячейке будет 0 %. Для будущих дней ячейка остаётся пустой.",
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 24,
+        "h": 13
+      },
+      "datasource": {
+        "type": "grafana-clickhouse-datasource",
+        "uid": "cinema-ch"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-clickhouse-datasource",
+            "uid": "cinema-ch"
+          },
+          "editorType": "sql",
+          "pluginVersion": "4.21.2",
+          "queryType": "table",
+          "format": 1,
+          "rawSql": "SELECT\n  toString(day) AS \"Когорта\",\n  maxOrNullIf(value, dimension = '0') AS \"День 0\",\n  maxOrNullIf(value, dimension = '1') AS \"День 1\",\n  maxOrNullIf(value, dimension = '2') AS \"День 2\",\n  maxOrNullIf(value, dimension = '3') AS \"День 3\",\n  maxOrNullIf(value, dimension = '4') AS \"День 4\",\n  maxOrNullIf(value, dimension = '5') AS \"День 5\",\n  maxOrNullIf(value, dimension = '6') AS \"День 6\",\n  maxOrNullIf(value, dimension = '7') AS \"День 7\"\nFROM cinema.daily_metrics\nWHERE metric = 'retention' AND $__dateFilter(day)\nGROUP BY day\nHAVING isNotNull(\"День 0\")\nORDER BY day"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "minWidth": 72
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Когорта"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 132
+              },
+              {
+                "id": "custom.align",
+                "value": "left"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byType",
+              "options": "number"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "percentunit"
+              },
+              {
+                "id": "min",
+                "value": 0
+              },
+              {
+                "id": "max",
+                "value": 1
+              },
+              {
+                "id": "decimals",
+                "value": 1
+              },
+              {
+                "id": "color",
+                "value": {
+                  "mode": "continuous-purples"
+                }
+              },
+              {
+                "id": "custom.align",
+                "value": "center"
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-background",
+                  "mode": "gradient"
+                }
+              },
+              {
+                "id": "noValue",
+                "value": " "
+              },
+              {
+                "id": "mappings",
+                "value": [
+                  {
+                    "type": "special",
+                    "options": {
+                      "match": "null",
+                      "result": {
+                        "text": " ",
+                        "color": "transparent"
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm",
+        "frozenColumns": {
+          "left": 1
+        }
+      }
+    },
+    {
+      "id": 2,
+      "type": "timeseries",
+      "title": "Активные зрители по дням (DAU)",
+      "description": "Зритель учитывается один раз за сутки, даже если он только искал фильм или возвращался в кинотеатр несколько раз.",
+      "gridPos": {
+        "x": 0,
+        "y": 13,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "type": "grafana-clickhouse-datasource",
+        "uid": "cinema-ch"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-clickhouse-datasource",
+            "uid": "cinema-ch"
+          },
+          "editorType": "sql",
+          "pluginVersion": "4.21.2",
+          "queryType": "timeseries",
+          "format": 0,
+          "rawSql": "SELECT\n  toDateTime(day, 'UTC') AS time,\n  value AS \"Зрители\"\nFROM cinema.daily_metrics\nWHERE metric = 'dau' AND dimension = '' AND $__dateFilter(day)\nORDER BY time"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0,
+          "min": 0,
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "#64A9E5"
+          },
+          "custom": {
+            "axisPlacement": "left",
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "spanNulls": false,
+            "drawStyle": "bars",
+            "lineWidth": 0,
+            "barAlignment": 0,
+            "barWidthFactor": 0.58,
+            "barMaxWidth": 40,
+            "fillOpacity": 84,
+            "showPoints": "never"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "showLegend": false,
+          "displayMode": "list",
+          "placement": "bottom",
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      }
+    },
+    {
+      "id": 3,
+      "type": "timeseries",
+      "title": "Конверсия в завершённый просмотр",
+      "description": "Число завершённых просмотров делится на число начатых за те же сутки. Если в этот день никто не начал просмотр, график оставляет пропуск.",
+      "gridPos": {
+        "x": 12,
+        "y": 13,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "type": "grafana-clickhouse-datasource",
+        "uid": "cinema-ch"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-clickhouse-datasource",
+            "uid": "cinema-ch"
+          },
+          "editorType": "sql",
+          "pluginVersion": "4.21.2",
+          "queryType": "timeseries",
+          "format": 0,
+          "rawSql": "SELECT\n  toDateTime(day, 'UTC') AS time,\n  value AS \"Конверсия\"\nFROM cinema.daily_metrics\nWHERE metric = 'conversion' AND dimension = '' AND $__dateFilter(day)\nORDER BY time"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "decimals": 1,
+          "min": 0,
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "#C68FF1"
+          },
+          "custom": {
+            "axisPlacement": "left",
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "spanNulls": false,
+            "drawStyle": "line",
+            "lineInterpolation": "linear",
+            "lineWidth": 2,
+            "fillOpacity": 12,
+            "showPoints": "always",
+            "pointSize": 5,
+            "axisSoftMax": 1
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "showLegend": false,
+          "displayMode": "list",
+          "placement": "bottom",
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      }
+    },
+    {
+      "id": 4,
+      "type": "barchart",
+      "title": "Топ-10 фильмов по просмотрам",
+      "description": "Чем чаще зрители включали фильм за выбранный период, тем выше он в рейтинге. На графике фильмы подписаны своими идентификаторами.",
+      "gridPos": {
+        "x": 0,
+        "y": 21,
+        "w": 12,
+        "h": 9
+      },
+      "datasource": {
+        "type": "grafana-clickhouse-datasource",
+        "uid": "cinema-ch"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-clickhouse-datasource",
+            "uid": "cinema-ch"
+          },
+          "editorType": "sql",
+          "pluginVersion": "4.21.2",
+          "queryType": "table",
+          "format": 1,
+          "rawSql": "SELECT\n  dimension AS \"Фильм\",\n  sum(value) AS \"Просмотры\"\nFROM cinema.daily_metrics\nWHERE metric = 'movie_views' AND $__dateFilter(day)\nGROUP BY dimension\nORDER BY \"Просмотры\" DESC, dimension ASC\nLIMIT 10"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0,
+          "min": 0,
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "#64A9E5"
+          },
+          "custom": {
+            "fillOpacity": 80,
+            "lineWidth": 0
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Фильм"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "string"
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "orientation": "horizontal",
+        "xField": "Фильм",
+        "showValue": "always",
+        "barRadius": 0.12,
+        "barWidth": 0.83,
+        "groupWidth": 0.76,
+        "stacking": "none",
+        "legend": {
+          "showLegend": false,
+          "displayMode": "list",
+          "placement": "bottom",
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      }
+    },
+    {
+      "id": 5,
+      "type": "timeseries",
+      "title": "Средняя длительность завершённого просмотра",
+      "description": "Для расчёта берётся позиция зрителя в секундах на момент завершения просмотра. График показывает среднее в минутах. Если за день никто не досмотрел фильм, значение остаётся пустым.",
+      "gridPos": {
+        "x": 12,
+        "y": 21,
+        "w": 12,
+        "h": 9
+      },
+      "datasource": {
+        "type": "grafana-clickhouse-datasource",
+        "uid": "cinema-ch"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-clickhouse-datasource",
+            "uid": "cinema-ch"
+          },
+          "editorType": "sql",
+          "pluginVersion": "4.21.2",
+          "queryType": "timeseries",
+          "format": 0,
+          "rawSql": "SELECT\n  toDateTime(day, 'UTC') AS time,\n  value / 60 AS \"Длительность\"\nFROM cinema.daily_metrics\nWHERE metric = 'avg_watch_seconds' AND dimension = '' AND $__dateFilter(day)\nORDER BY time"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "suffix: мин",
+          "decimals": 1,
+          "min": 0,
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "#74CBB4"
+          },
+          "custom": {
+            "axisPlacement": "left",
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "spanNulls": false,
+            "drawStyle": "line",
+            "lineInterpolation": "linear",
+            "lineWidth": 2,
+            "fillOpacity": 13,
+            "showPoints": "always",
+            "pointSize": 5
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "showLegend": false,
+          "displayMode": "list",
+          "placement": "bottom",
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      }
+    }
+  ],
+  "schemaVersion": 41,
+  "version": 1
+}

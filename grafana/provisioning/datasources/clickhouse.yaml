@@ -1,0 +1,18 @@
+apiVersion: 1
+
+datasources:
+  - name: ClickHouse
+    uid: cinema-ch
+    type: grafana-clickhouse-datasource
+    access: proxy
+    isDefault: true
+    editable: false
+    jsonData:
+      host: clickhouse
+      port: 9000
+      protocol: native
+      defaultDatabase: cinema
+      defaultTable: daily_metrics
+      username: cinema_reader
+    secureJsonData:
+      password: cinema_read_local
